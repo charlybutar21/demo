@@ -1,0 +1,38 @@
+### Otp Request Success
+POST http://localhost:8080/otp/request
+Accept: application/json
+Content-Type: application/json
+
+{
+  "userId" : "username"
+}
+
+### Validate Otp Success
+POST http://localhost:8080/otp/validate
+Accept: application/json
+Content-Type: application/json
+
+{
+  "userId" : "username",
+  "otp": "39930"
+}
+
+### Validate Otp Not found
+POST http://localhost:8080/otp/validate
+Accept: application/json
+Content-Type: application/json
+
+{
+  "userId" : "username",
+  "otp": "11111"
+}
+
+### Validate Otp Expired
+POST http://localhost:8080/otp/validate
+Accept: application/json
+Content-Type: application/json
+
+{
+  "userId" : "username",
+  "otp": "19469"
+}

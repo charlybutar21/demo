@@ -35,7 +35,7 @@ spring.cache.redis.time-to-live=2
 ```
 
 ## Run following SQL insert statements
-Open `data.sql`
+Open `data.sql` if using mysql
 ```
 CREATE DATABASE IF NOT EXISTS demo_db;
 USE demo_db;

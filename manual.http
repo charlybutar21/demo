@@ -14,7 +14,7 @@ Content-Type: application/json
 
 {
   "userId" : "username",
-  "otp": "39930"
+  "otp": "63499"
 }
 
 ### Validate Otp Not found

@@ -9,6 +9,7 @@ import com.charly.demo.entity.OtpStatus;
 import com.charly.demo.entity.OtpStatusType;
 import com.charly.demo.entity.UserOtp;
 import com.charly.demo.exception.OtpValidationException;
+import com.charly.demo.repository.OTPCacheRepository;
 import com.charly.demo.repository.OtpStatusRepository;
 import com.charly.demo.repository.UserOtpRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +22,9 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 class UserOtpServiceImplTest {
 
@@ -29,10 +32,7 @@ class UserOtpServiceImplTest {
     private Config config;
 
     @Mock
-    private UserOtpRepository userOtpRepository;
-
-    @Mock
-    private OtpStatusRepository otpStatusRepository;
+    private OTPCacheRepository otpCacheRepository;
 
     @InjectMocks
     private UserOtpServiceImpl userOtpService;
@@ -44,78 +44,56 @@ class UserOtpServiceImplTest {
 
     @Test
     void generateOtpSuccess() {
-        OtpRequest request = new OtpRequest();
-        request.setUserId("userId");
-
-        when(config.getOtpExpirationMinutes()).thenReturn(2L);
-
-        OtpStatus created = new OtpStatus(1L, OtpStatusType.CREATED.toString());
-        when(otpStatusRepository.findByStatus(OtpStatusType.CREATED.toString())).thenReturn(Optional.of(created));
+        OtpRequest request = new OtpRequest("userId");
 
         OtpResponse response = userOtpService.generateOtp(request);
         assertNotNull(response);
+        verify(otpCacheRepository).put(anyString(), anyInt());
         assertEquals("userId", response.getUserId());
+        assertEquals(5, response.getOtp().length());
     }
 
     @Test
     void generateOtpFailed() {
-        OtpRequest request = new OtpRequest();
-        request.setUserId("userId");
+        OtpRequest request = new OtpRequest("user123");
 
-        when(config.getOtpExpirationMinutes()).thenReturn(2L);
-        when(otpStatusRepository.findByStatus(OtpStatusType.CREATED.toString())).thenReturn(null);
+        doThrow(new RuntimeException("Error while retrieving from the cache ")).when(otpCacheRepository).put(anyString(), anyInt());
 
-        assertThrows(RuntimeException.class, () -> {
-            userOtpService.generateOtp(request);
-        });
+        assertThrows(RuntimeException.class, () -> userOtpService.generateOtp(request));
     }
 
-    @Test
+   @Test
     void validateOtpSuccess() throws OtpValidationException {
-        ValidateOtpRequest request = new ValidateOtpRequest();
-        request.setUserId("userId");
-        request.setOtp("12345");
+        ValidateOtpRequest request = new ValidateOtpRequest("userId", "12345");
 
-        OtpStatus created = new OtpStatus(1L, OtpStatusType.CREATED.toString());
-        when(otpStatusRepository.findByStatus(OtpStatusType.CREATED.toString())).thenReturn(Optional.of(created));
-
-        UserOtp userOtp = new UserOtp();
-        userOtp.setId(1L);
-        userOtp.setStatus(created);
-        userOtp.setUserId("userId");
-        userOtp.setExpiryTime(LocalDateTime.now().plusMinutes(2));
-        when(userOtpRepository.findUserOtpByUserIdAndStatusId("userId", created.getId())).thenReturn(Optional.of(userOtp));
-
-        OtpStatus validated = new OtpStatus(2L, OtpStatusType.VALIDATED.toString());
-        when(otpStatusRepository.findByStatus(OtpStatusType.VALIDATED.toString())).thenReturn(Optional.of(validated));
+        when(otpCacheRepository.get(request.getUserId())).thenReturn(Optional.of("12345"));
+        when(config.getOtpValidationSuccessMessage()).thenReturn("OTP validated successfully.");
 
         ValidateOtpResponse response = userOtpService.validateOtp(request);
         assertNotNull(response);
+        verify(otpCacheRepository).remove(request.getUserId());
+        assertEquals(request.getUserId(), response.getUserId());
+        assertEquals("OTP validated successfully.", response.getMessage());
 
     }
 
     @Test
     void validateOtpExpired() throws OtpValidationException {
-        ValidateOtpRequest request = new ValidateOtpRequest();
-        request.setUserId("userId");
-        request.setOtp("12345");
+        ValidateOtpRequest request = new ValidateOtpRequest("userId", "12345");
 
-        OtpStatus created = new OtpStatus(1L, OtpStatusType.CREATED.toString());
-        when(otpStatusRepository.findByStatus(OtpStatusType.CREATED.toString())).thenReturn(Optional.of(created));
+        when(otpCacheRepository.get(request.getUserId())).thenReturn(Optional.of("54321"));
 
-        UserOtp userOtp = new UserOtp();
-        userOtp.setId(1L);
-        userOtp.setStatus(created);
-        userOtp.setUserId("userId");
-        userOtp.setExpiryTime(LocalDateTime.now().minusMinutes(2));
-        when(userOtpRepository.findUserOtpByUserIdAndStatusId("userId", created.getId())).thenReturn(Optional.of(userOtp));
+        assertThrows(OtpValidationException.class, () -> userOtpService.validateOtp(request));
 
-        OtpStatus expired = new OtpStatus(2L, OtpStatusType.EXPIRED.toString());
-        when(otpStatusRepository.findByStatus(OtpStatusType.EXPIRED.toString())).thenReturn(Optional.of(expired));
+    }
 
-        assertThrows(OtpValidationException.class, () -> {
-            userOtpService.validateOtp(request);
-        });
+    @Test
+    void validateOtpInvalid() throws OtpValidationException {
+        ValidateOtpRequest request = new ValidateOtpRequest("userId", "12345");
+
+        when(otpCacheRepository.get(request.getUserId())).thenReturn(Optional.empty());
+
+        assertThrows(OtpValidationException.class, () -> userOtpService.validateOtp(request));
 
     }
 }

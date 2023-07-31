@@ -25,9 +25,13 @@ spring.jpa.hibernate.ddl-auto=create
 otp.expiration.minutes=2
 otp.validation.success.message=OTP validated successfully.
 ```
-## Run Spring Boot application
+
+- Redis
 ```
-mvn spring-boot:run
+spring.data.redis.host=localhost
+spring.data.redis.port=6380
+spring.data.redis.password=
+spring.cache.redis.time-to-live=2
 ```
 
 ## Run following SQL insert statements

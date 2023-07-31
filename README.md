@@ -25,10 +25,6 @@ spring.jpa.hibernate.ddl-auto=create
 otp.expiration.minutes=2
 otp.validation.success.message=OTP validated successfully.
 ```
-## Run Spring Boot application
-```
-mvn spring-boot:run
-```
 
 ## Run following SQL insert statements
 Open `data.sql`
